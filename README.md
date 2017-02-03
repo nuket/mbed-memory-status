@@ -23,3 +23,9 @@ Using RTX RTOS, this will print something like:
      heap ( start: 200056E8 end: 20007800 size: 00002118 )
 isr_stack ( start: 20007800 end: 20008000 size: 00000800 )
 ```
+
+## Use
+
+```
+mbed add https://github.com/nuket/mbed-memory-status.git mbed-memory-status
+```
