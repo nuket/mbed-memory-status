@@ -1,5 +1,7 @@
 # mbed-memory-status
-Print thread and ISR stack locations and sizes, and heap location and size at runtime.
+Print thread and ISR stack locations and sizes, and heap location and size at runtime when using mbed OS. Useful for tracking down total runtime memory usage.
+
+Does *not* use printf(). It *will* automatically initialize the serial port using the low-level mbed `serial_api.h` if no other instantiation has occurred.
 
 ## Example
 ```
