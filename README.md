@@ -29,3 +29,8 @@ isr_stack ( start: 20007800 end: 20008000 size: 00000800 )
 ```
 mbed add https://github.com/nuket/mbed-memory-status.git mbed-memory-status
 ```
+
+## Why
+
+This code exists because of a stupid amount of bug-hunting:
+https://vilimpoc.org/blog/2017/02/01/stack-heap-and-thread-crash-hunting-in-mbed-os/
