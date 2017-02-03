@@ -14,7 +14,7 @@ int main()
 
 ## Output
 
-Using RTX RTOS, this will print something like:
+Using ARM RTX RTOS on mbed, this will print something like:
 
 ```
     stack ( start: 20005100 end: 20005420 size: 00000320 used: 00000070 ) thread ( id: 2000542C entry: 00020A6D )
