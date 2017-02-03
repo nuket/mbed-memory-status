@@ -33,4 +33,4 @@ mbed add https://github.com/nuket/mbed-memory-status.git mbed-memory-status
 ## Why
 
 This code exists because of a stupid amount of bug-hunting:
-https://vilimpoc.org/blog/2017/02/01/stack-heap-and-thread-crash-hunting-in-mbed-os/
+> https://vilimpoc.org/blog/2017/02/01/stack-heap-and-thread-crash-hunting-in-mbed-os/
