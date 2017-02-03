@@ -29,6 +29,8 @@
  * pulling in all the printf() code.
  */
 
+#include "mbed_stats.h"
+
 #include "platform/critical.h"
 #include "hal/serial_api.h"
 
@@ -155,6 +157,10 @@ void print_heap_and_isr_stack_info(void)
 
     extern unsigned char * mbed_stack_isr_start;
     extern uint32_t        mbed_stack_isr_size;
+    
+    mbed_stats_heap_t      heap_stats;
+    
+    mbed_stats_heap_get(&heap_stats);
 
     DPL("     heap ( start: ");
     debug_print_pointer(mbed_heap_start);
@@ -164,6 +170,15 @@ void print_heap_and_isr_stack_info(void)
     
     DPL(" size: ");
     debug_print_u32(mbed_heap_size);
+    
+    DPL(" used: ");
+    debug_print_u32(heap_stats.max_size);
+    
+    DPL(" )  alloc ( ok: ");
+    debug_print_u32(heap_stats.alloc_cnt);
+    
+    DPL("  fail: ");
+    debug_print_u32(heap_stats.alloc_fail_cnt);
     
     DPL(" )\r\n");
     
