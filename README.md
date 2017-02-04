@@ -39,7 +39,7 @@ BLX     R0
 
 See the `startup_example.S.txt` file for what this looks like (the file is a modified copy of `startup_NRF51822.S`).
 
-Then define this in `mbed_memory_status.c`:
+Then define this in `mbed_memory_status.c`, or via the `mbed_app.json` macros, or via the command line:
 
 ```c
 #define CAN_DEBUG_ISR_STACK_USAGE
