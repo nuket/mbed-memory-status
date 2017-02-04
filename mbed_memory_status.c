@@ -34,6 +34,33 @@
 #include "platform/critical.h"
 #include "hal/serial_api.h"
 
+// #define CAN_DEBUG_ISR_STACK_USAGE
+
+#ifdef CAN_DEBUG_ISR_STACK_USAGE
+
+#include "compiler_abstraction.h"
+
+// Value is sprayed into all of the ISR stack at boot time.
+static const uint32_t ISR_STACK_CANARY = 0xAFFEC7ED; // AFFECTED
+
+// Refers to linker script defined symbol, may not be available
+// on all platforms.
+extern uint32_t __StackLimit;
+extern uint32_t __StackTop;
+
+void fill_isr_stack_with_canary(void)
+{
+    uint32_t * bottom = &__StackLimit;
+    uint32_t * top    = (uint32_t *) GET_SP();
+
+    for (; bottom < top; bottom++)
+    {
+        *bottom = ISR_STACK_CANARY;
+    }
+}
+
+#endif // CAN_DEBUG_ISR_STACK_USAGE
+
 #if DEVICE_SERIAL
 
 extern int      stdio_uart_inited;
@@ -81,7 +108,7 @@ static void debug_print_u32(uint32_t u32)
     core_util_critical_section_exit();
 }
 
-static void debug_print_pointer(void * pointer)
+static void debug_print_pointer(const void * pointer)
 {
     debug_print_u32((uint32_t) pointer);
 }
@@ -150,13 +177,55 @@ void print_all_thread_info(void)
 
 #endif // MBED_CONF_RTOS_PRESENT
 
+static void print_memory_contents(const uint32_t * start, const uint32_t * end)
+{
+    uint8_t line = 0;
+    
+    for (; start < end; start++)
+    {
+        if (0 == line)
+        {
+            debug_print_pointer(start);
+            DPL(": ");
+        }
+        
+        debug_print_u32(*start);
+        
+        line++;
+        
+        if (16 == line)
+        {
+            DPL("\r\n");
+            line = 0;
+        }
+    }
+}
+
+extern uint32_t mbed_stack_isr_size;
+
+#ifdef CAN_DEBUG_ISR_STACK_USAGE
+
+uint32_t calculate_isr_stack_usage(void)
+{
+    for (const uint32_t * stack = &__StackLimit; stack < &__StackTop; stack++)
+    {
+        if (*stack != ISR_STACK_CANARY)
+        {
+            return (uint32_t) &__StackTop - (uint32_t) stack;
+        }
+    }
+    
+    return mbed_stack_isr_size;
+}
+
+#endif
+
 void print_heap_and_isr_stack_info(void)
 {
     extern unsigned char * mbed_heap_start;
     extern uint32_t        mbed_heap_size;
 
     extern unsigned char * mbed_stack_isr_start;
-    extern uint32_t        mbed_stack_isr_size;
     
     mbed_stats_heap_t      heap_stats;
     
@@ -190,8 +259,18 @@ void print_heap_and_isr_stack_info(void)
     
     DPL(" size: ");
     debug_print_u32(mbed_stack_isr_size);
+    
+#ifdef CAN_DEBUG_ISR_STACK_USAGE
+    
+    DPL(" used: ");
+    debug_print_u32(calculate_isr_stack_usage());
+    
+#endif
 
     DPL(" )\r\n");
+
+    // Print ISR stack contents.
+    // print_memory_contents(&__StackLimit, &__StackTop);
 }
 
 #endif // DEVICE_SERIAL
