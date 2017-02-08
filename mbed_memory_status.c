@@ -34,7 +34,7 @@
 #include "platform/critical.h"
 #include "hal/serial_api.h"
 
-// #define CAN_DEBUG_ISR_STACK_USAGE
+#define CAN_DEBUG_ISR_STACK_USAGE
 
 #ifdef CAN_DEBUG_ISR_STACK_USAGE
 
@@ -75,16 +75,24 @@ static void check_serial_and_init(void)
     }
 }
 
-static void debug_print_label(const char * const buffer, uint8_t size)
+static void nway_putc(int c)
+{
+#if DEVICE_SERIAL
+    serial_putc(&stdio_uart, c);
+#endif
+    
+#if DEVICE_SWO
+    swo_putc(c);
+#endif
+}
+
+static void debug_print_label(const char * label)
 {
     core_util_critical_section_enter();
     check_serial_and_init();
 
-    for (uint8_t i = 0; i < size; i++) 
-    {
-        serial_putc(&stdio_uart, buffer[i]);
-    }
-        
+    while (*label) nway_putc(*label++);
+
     core_util_critical_section_exit();
 }
 
@@ -96,14 +104,14 @@ static void debug_print_u32(uint32_t u32)
     check_serial_and_init();
     
     // Always printed as bigendian.
-    serial_putc(&stdio_uart, HEX[(((uint32_t) u32 & 0xf0000000) >> 28)]);
-    serial_putc(&stdio_uart, HEX[(((uint32_t) u32 & 0x0f000000) >> 24)]);
-    serial_putc(&stdio_uart, HEX[(((uint32_t) u32 & 0x00f00000) >> 20)]);
-    serial_putc(&stdio_uart, HEX[(((uint32_t) u32 & 0x000f0000) >> 16)]);
-    serial_putc(&stdio_uart, HEX[(((uint32_t) u32 & 0x0000f000) >> 12)]);
-    serial_putc(&stdio_uart, HEX[(((uint32_t) u32 & 0x00000f00) >>  8)]);
-    serial_putc(&stdio_uart, HEX[(((uint32_t) u32 & 0x000000f0) >>  4)]);
-    serial_putc(&stdio_uart, HEX[(((uint32_t) u32 & 0x0000000f) >>  0)]);
+    nway_putc(HEX[(((uint32_t) u32 & 0xf0000000) >> 28)]);
+    nway_putc(HEX[(((uint32_t) u32 & 0x0f000000) >> 24)]);
+    nway_putc(HEX[(((uint32_t) u32 & 0x00f00000) >> 20)]);
+    nway_putc(HEX[(((uint32_t) u32 & 0x000f0000) >> 16)]);
+    nway_putc(HEX[(((uint32_t) u32 & 0x0000f000) >> 12)]);
+    nway_putc(HEX[(((uint32_t) u32 & 0x00000f00) >>  8)]);
+    nway_putc(HEX[(((uint32_t) u32 & 0x000000f0) >>  4)]);
+    nway_putc(HEX[(((uint32_t) u32 & 0x0000000f) >>  0)]);
 
     core_util_critical_section_exit();
 }
@@ -113,7 +121,7 @@ static void debug_print_pointer(const void * pointer)
     debug_print_u32((uint32_t) pointer);
 }
 
-#define DPL(X) debug_print_label((X), sizeof(X) - 1)
+#define DPL(X) debug_print_label((X))
 
 #if (defined (MBED_CONF_RTOS_PRESENT) && (MBED_CONF_RTOS_PRESENT != 0))
 
