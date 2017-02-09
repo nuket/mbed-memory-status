@@ -32,12 +32,14 @@
 #include "mbed_stats.h"
 
 #include "platform/critical.h"
-#include "hal/serial_api.h"
 
-// #define CAN_DEBUG_ISR_STACK_USAGE
+#define DEBUG_ISR_STACK_USAGE  0
+#define DEBUG_MEMORY_CONTENTS  0
 
-#ifdef CAN_DEBUG_ISR_STACK_USAGE
+#define OUTPUT_SERIAL          1
+#define OUTPUT_RTT             0
 
+#if DEBUG_ISR_STACK_USAGE
 #include "compiler_abstraction.h"
 
 // Value is sprayed into all of the ISR stack at boot time.
@@ -58,15 +60,40 @@ void fill_isr_stack_with_canary(void)
         *bottom = ISR_STACK_CANARY;
     }
 }
+#endif // DEBUG_ISR_STACK_USAGE
 
-#endif // CAN_DEBUG_ISR_STACK_USAGE
+#if OUTPUT_RTT
+#include "RTT/SEGGER_RTT.h"
 
-#if DEVICE_SERIAL
+enum
+{
+    DEFAULT_RTT_UP_BUFFER = 0
+};
+
+static void output_rtt_init(void)
+{
+    static int initialized = 0;
+    
+    if (!initialized)
+    {
+        SEGGER_RTT_ConfigUpBuffer(DEFAULT_RTT_UP_BUFFER, NULL, NULL, 0, SEGGER_RTT_MODE_NO_BLOCK_TRIM);
+    }
+}
+
+static void output_rtt_print_label(const char * label)
+{
+    output_rtt_init();
+    SEGGER_RTT_WriteString(DEFAULT_RTT_UP_BUFFER, label);
+}
+#endif
+
+#if OUTPUT_SERIAL && DEVICE_SERIAL
+#include "hal/serial_api.h"
 
 extern int      stdio_uart_inited;
 extern serial_t stdio_uart;
 
-static void check_serial_and_init(void)
+static void output_serial_init(void)
 {
     if (!stdio_uart_inited) 
     {
@@ -75,37 +102,45 @@ static void check_serial_and_init(void)
     }
 }
 
-static void debug_print_label(const char * const buffer, uint8_t size)
+static void output_serial_print_label(const char * label)
 {
     core_util_critical_section_enter();
-    check_serial_and_init();
+    output_serial_init();
 
-    for (uint8_t i = 0; i < size; i++) 
-    {
-        serial_putc(&stdio_uart, buffer[i]);
-    }
-        
+    while (*label) serial_putc(&stdio_uart, *label++);
+    
     core_util_critical_section_exit();
+}
+#endif
+
+static void nway_print_label(const char * label)
+{
+#if OUTPUT_SERIAL
+    output_serial_print_label(label);
+#endif
+
+#if OUTPUT_RTT
+    output_rtt_print_label(label);
+#endif
 }
 
 static const char HEX[] = "0123456789ABCDEF";
 
 static void debug_print_u32(uint32_t u32)
 {
-    core_util_critical_section_enter();
-    check_serial_and_init();
+    char output[9] = {0};
     
-    // Always printed as bigendian.
-    serial_putc(&stdio_uart, HEX[(((uint32_t) u32 & 0xf0000000) >> 28)]);
-    serial_putc(&stdio_uart, HEX[(((uint32_t) u32 & 0x0f000000) >> 24)]);
-    serial_putc(&stdio_uart, HEX[(((uint32_t) u32 & 0x00f00000) >> 20)]);
-    serial_putc(&stdio_uart, HEX[(((uint32_t) u32 & 0x000f0000) >> 16)]);
-    serial_putc(&stdio_uart, HEX[(((uint32_t) u32 & 0x0000f000) >> 12)]);
-    serial_putc(&stdio_uart, HEX[(((uint32_t) u32 & 0x00000f00) >>  8)]);
-    serial_putc(&stdio_uart, HEX[(((uint32_t) u32 & 0x000000f0) >>  4)]);
-    serial_putc(&stdio_uart, HEX[(((uint32_t) u32 & 0x0000000f) >>  0)]);
-
-    core_util_critical_section_exit();
+    // Always printed as big endian.
+    output[0] = HEX[(((uint32_t) u32 & 0xf0000000) >> 28)];
+    output[1] = HEX[(((uint32_t) u32 & 0x0f000000) >> 24)];
+    output[2] = HEX[(((uint32_t) u32 & 0x00f00000) >> 20)];
+    output[3] = HEX[(((uint32_t) u32 & 0x000f0000) >> 16)];
+    output[4] = HEX[(((uint32_t) u32 & 0x0000f000) >> 12)];
+    output[5] = HEX[(((uint32_t) u32 & 0x00000f00) >>  8)];
+    output[6] = HEX[(((uint32_t) u32 & 0x000000f0) >>  4)];
+    output[7] = HEX[(((uint32_t) u32 & 0x0000000f) >>  0)];
+    
+    nway_print_label(output);
 }
 
 static void debug_print_pointer(const void * pointer)
@@ -113,10 +148,9 @@ static void debug_print_pointer(const void * pointer)
     debug_print_u32((uint32_t) pointer);
 }
 
-#define DPL(X) debug_print_label((X), sizeof(X) - 1)
+#define DPL(X) nway_print_label((X))
 
 #if (defined (MBED_CONF_RTOS_PRESENT) && (MBED_CONF_RTOS_PRESENT != 0))
-
 #include "cmsis_os.h"
 
 // Temporarily #undef NULL or the compiler complains about previous def.
@@ -174,9 +208,9 @@ void print_all_thread_info(void)
  
     _osThreadEnumFree(enumId);
 }
-
 #endif // MBED_CONF_RTOS_PRESENT
 
+#if DEBUG_MEMORY_CONTENTS
 static void print_memory_contents(const uint32_t * start, const uint32_t * end)
 {
     uint8_t line = 0;
@@ -200,11 +234,11 @@ static void print_memory_contents(const uint32_t * start, const uint32_t * end)
         }
     }
 }
+#endif
 
 extern uint32_t mbed_stack_isr_size;
 
-#ifdef CAN_DEBUG_ISR_STACK_USAGE
-
+#if DEBUG_ISR_STACK_USAGE
 uint32_t calculate_isr_stack_usage(void)
 {
     for (const uint32_t * stack = &__StackLimit; stack < &__StackTop; stack++)
@@ -217,7 +251,6 @@ uint32_t calculate_isr_stack_usage(void)
     
     return mbed_stack_isr_size;
 }
-
 #endif
 
 void print_heap_and_isr_stack_info(void)
@@ -260,17 +293,15 @@ void print_heap_and_isr_stack_info(void)
     DPL(" size: ");
     debug_print_u32(mbed_stack_isr_size);
     
-#ifdef CAN_DEBUG_ISR_STACK_USAGE
-    
+#if DEBUG_ISR_STACK_USAGE
     DPL(" used: ");
     debug_print_u32(calculate_isr_stack_usage());
-    
 #endif
 
     DPL(" )\r\n");
 
+#if DEBUG_MEMORY_CONTENTS
     // Print ISR stack contents.
-    // print_memory_contents(&__StackLimit, &__StackTop);
+    print_memory_contents(&__StackLimit, &__StackTop);
+#endif
 }
-
-#endif // DEVICE_SERIAL
