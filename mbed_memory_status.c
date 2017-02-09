@@ -29,15 +29,15 @@
  * pulling in all the printf() code.
  */
 
-#include "mbed_stats.h"
-
 #include "platform/critical.h"
+#include "platform/mbed_stats.h"
 
 #define DEBUG_ISR_STACK_USAGE  0
 #define DEBUG_MEMORY_CONTENTS  0
 
 #define OUTPUT_SERIAL          1
 #define OUTPUT_RTT             0
+#define OUTPUT_SWO             0
 
 #if DEBUG_ISR_STACK_USAGE
 #include "compiler_abstraction.h"
@@ -61,31 +61,6 @@ void fill_isr_stack_with_canary(void)
     }
 }
 #endif // DEBUG_ISR_STACK_USAGE
-
-#if OUTPUT_RTT
-#include "RTT/SEGGER_RTT.h"
-
-enum
-{
-    DEFAULT_RTT_UP_BUFFER = 0
-};
-
-static void output_rtt_init(void)
-{
-    static int initialized = 0;
-    
-    if (!initialized)
-    {
-        SEGGER_RTT_ConfigUpBuffer(DEFAULT_RTT_UP_BUFFER, NULL, NULL, 0, SEGGER_RTT_MODE_NO_BLOCK_TRIM);
-    }
-}
-
-static void output_rtt_print_label(const char * label)
-{
-    output_rtt_init();
-    SEGGER_RTT_WriteString(DEFAULT_RTT_UP_BUFFER, label);
-}
-#endif
 
 #if OUTPUT_SERIAL && DEVICE_SERIAL
 #include "hal/serial_api.h"
@@ -113,6 +88,61 @@ static void output_serial_print_label(const char * label)
 }
 #endif
 
+#if OUTPUT_RTT
+#include "RTT/SEGGER_RTT.h"
+
+enum
+{
+    DEFAULT_RTT_UP_BUFFER = 0
+};
+
+static void output_rtt_init(void)
+{
+    static int initialized = 0;
+    
+    if (!initialized)
+    {
+        SEGGER_RTT_ConfigUpBuffer(DEFAULT_RTT_UP_BUFFER, NULL, NULL, 0, SEGGER_RTT_MODE_NO_BLOCK_TRIM);
+        
+        initialized = 1;
+    }
+}
+
+static void output_rtt_print_label(const char * label)
+{
+    output_rtt_init();
+    SEGGER_RTT_WriteString(DEFAULT_RTT_UP_BUFFER, label);
+}
+#endif
+
+#if OUTPUT_SWO
+#ifdef NRF52
+#include "nrf.h"
+#endif
+
+static void output_swo_init(void)
+{
+    static int initialized = 0;
+    
+    if (!initialized)
+    {
+        NRF_CLOCK->TRACECONFIG = (NRF_CLOCK->TRACECONFIG & ~CLOCK_TRACECONFIG_TRACEPORTSPEED_Msk) |
+            (CLOCK_TRACECONFIG_TRACEPORTSPEED_4MHz << CLOCK_TRACECONFIG_TRACEPORTSPEED_Pos);
+
+        ITM->TCR |= 1;
+        ITM->TER |= 1;
+        
+        initialized = 1;
+    }
+}
+
+static void output_swo_print_label(const char * label)
+{
+    output_swo_init();
+    while (*label) ITM_SendChar(*label++);
+}
+#endif
+
 static void nway_print_label(const char * label)
 {
 #if OUTPUT_SERIAL
@@ -121,6 +151,10 @@ static void nway_print_label(const char * label)
 
 #if OUTPUT_RTT
     output_rtt_print_label(label);
+#endif
+    
+#if OUTPUT_SWO
+    output_swo_print_label(label);
 #endif
 }
 
