@@ -242,6 +242,13 @@ void print_all_thread_info(void)
  
     _osThreadEnumFree(enumId);
 }
+
+void print_current_thread_id(void)
+{
+    DPL("Current thread: ");
+    debug_print_pointer(osThreadGetId());
+    DPL("\r\n");
+}
 #endif // MBED_CONF_RTOS_PRESENT
 
 #if DEBUG_MEMORY_CONTENTS

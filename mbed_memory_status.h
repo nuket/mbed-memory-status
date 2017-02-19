@@ -28,6 +28,7 @@
 extern "C" {
 #endif
 
+void print_current_thread_id(void);
 void print_all_thread_info(void);
 void print_heap_and_isr_stack_info(void);
 
