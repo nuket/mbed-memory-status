@@ -44,7 +44,7 @@ See the `startup_example.S.txt` file for what this looks like (the file is a mod
 Then define this in `mbed_memory_status.c`, or via the `mbed_app.json` macros, or via the command line:
 
 ```c
-#define CAN_DEBUG_ISR_STACK_USAGE
+#define DEBUG_ISR_STACK_USAGE  1
 ```
 
 ## Why
