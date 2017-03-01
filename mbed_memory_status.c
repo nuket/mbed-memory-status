@@ -32,7 +32,9 @@
 #include "platform/critical.h"
 #include "platform/mbed_stats.h"
 
+#ifndef DEBUG_ISR_STACK_USAGE
 #define DEBUG_ISR_STACK_USAGE  0
+#endif
 #define DEBUG_MEMORY_CONTENTS  0
 
 #define OUTPUT_SERIAL          1
