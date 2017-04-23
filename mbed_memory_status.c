@@ -29,12 +29,13 @@
  * pulling in all the printf() code.
  */
 
-#include "platform/critical.h"
+#include "platform/mbed_critical.h"
 #include "platform/mbed_stats.h"
 
 #ifndef DEBUG_ISR_STACK_USAGE
 #define DEBUG_ISR_STACK_USAGE  0
 #endif
+
 #ifndef DEBUG_MEMORY_CONTENTS
 #define DEBUG_MEMORY_CONTENTS  0
 #endif
