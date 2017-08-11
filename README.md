@@ -1,4 +1,13 @@
 # mbed-memory-status
+
+## Note
+
+As of mbed OS 5.5, this code no longer works. The switch to CMSIS-RTOS2 as the base OS has removed all of the low-level APIs that were relied upon.
+
+The last version of mbed OS that will work is [https://github.com/ARMmbed/mbed-os/releases/tag/mbed-os-5.4.7](mbed-os-5.4.7).
+
+## Purpose
+
 Print thread stack, ISR stack, and global heap locations, sizes, and utilization at runtime when using mbed OS. Useful for tracking down total runtime memory usage and stack overflows.
 
 Does *not* use printf(). It *will* automatically initialize the default serial port to 115200 8N1 using the low-level mbed `serial_api.h` if no other instantiation has occurred.
