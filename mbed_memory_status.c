@@ -32,6 +32,10 @@
 #include "platform/mbed_critical.h"
 #include "platform/mbed_stats.h"
 
+#if !MBED_STACK_STATS_ENABLED
+#warning MBED_STACK_STATS_ENABLED != 1, so there will be no stack usage measurements.
+#endif
+
 #ifndef DEBUG_ISR_STACK_USAGE
 #define DEBUG_ISR_STACK_USAGE  0
 #endif
@@ -192,10 +196,24 @@ static void debug_print_pointer(const void * pointer)
 #if (defined (MBED_CONF_RTOS_PRESENT) && (MBED_CONF_RTOS_PRESENT != 0))
 #include "cmsis_os.h"
 
-// Temporarily #undef NULL or the compiler complains about previous def.
-#undef NULL
-#include "rt_TypeDef.h"
- 
+// cmsis_os.h provides some useful defines:
+//
+// For mbed OS 5.4 and lower,  osCMSIS == 0x10002U (see: rtos/rtx/TARGET_CORTEX_M)
+// For mbed OS 5.5 and higher, osCMSIS == 0x20001U (see: rtos/TARGET_CORTEX/rtx{4|5})
+//
+// Starting in mbed OS 5.5, a new RTOS layer was introduced with a different API.
+
+#if (osCMSIS < 0x20000U)
+    // Temporarily #undef NULL or the compiler complains about previous def.
+    #undef NULL
+    #include "rt_TypeDef.h"
+#else
+    #include "rtx_lib.h"
+    // #include <stdlib.h>  // Include if you need malloc() / free() below. (probably better for non-C99 compilers)
+#endif
+
+#if (osCMSIS < 0x20000U)
+
 // No public forward declaration for this.
 extern P_TCB rt_tid2ptcb (osThreadId thread_id);
 
@@ -247,6 +265,89 @@ void print_all_thread_info(void)
  
     _osThreadEnumFree(enumId);
 }
+
+#else
+
+static void print_thread_info(osThreadId threadId)
+{
+    // Refs: rtx_lib.h - #define os_thread_t osRtxThread_t
+    //       rtx_os.h  - typedef struct osRtxThread_s { } osRtxThread_t
+
+    if (!threadId) return;
+
+    os_thread_t * tcb = (os_thread_t *) threadId;
+
+    uint32_t stackSize = osThreadGetStackSize(threadId);
+    uint32_t stackUsed = osThreadGetStackSpace(threadId);
+    
+    DPL("    stack ( start: ");
+    debug_print_pointer(tcb->stack_mem);
+
+    DPL(" end: ");
+    debug_print_pointer((uint8_t *) tcb->stack_mem + stackSize);
+
+    DPL(" size: ");
+    debug_print_u32(stackSize);
+    
+    DPL(" used: ");
+    debug_print_u32(stackSize - stackUsed);
+    
+    DPL(" ) ");
+
+    DPL("thread ( id: ");
+    debug_print_pointer(threadId);
+    
+    DPL(" entry: ");
+    debug_print_u32(tcb->thread_addr);
+
+    DPL(" name: ");
+    DPL(osThreadGetName(threadId) ? osThreadGetName(threadId) : "unknown");
+
+    DPL(" )\r\n");
+}
+
+void print_all_thread_info(void)
+{
+    // Refs: mbed_stats.c - mbed_stats_stack_get_each()
+
+    uint32_t     threadCount = osThreadGetCount();
+    osThreadId_t threads[threadCount];
+
+    // osThreadId_t * threads = malloc(sizeof(osThreadId_t) * threadCount);
+    // MBED_ASSERT(NULL != threads);
+
+    memset(threads, 0, threadCount * sizeof(osThreadId_t));
+
+    // This will probably only work if the number of threads remains constant 
+    // (i.e. the number of thread control blocks remains constant)
+    //
+    // This is probably the case on a deterministic realtime embedded system
+    // with limited SRAM.
+
+    osKernelLock();
+
+    threadCount = osThreadEnumerate(threads, threadCount);
+
+    for (uint32_t i = 0; i < threadCount; i++)
+    {
+        // There seems to be a Heisenbug when calling print_thread_info() 
+        // inside of osKernelLock()!
+        
+        // This error may appear on the serial console:
+        // mbed assertation failed: os_timer->get_tick() == svcRtxKernelGetTickCount(), file: .\mbed-os\rtos\TARGET_CORTEX\mbed_rtx_idle.c
+        
+        // The RTOS seems to be asserting an idle constraint violation due 
+        // to the slowness of sending data through the serial port, but it
+        // does not happen consistently.
+        print_thread_info(threads[i]);
+    }
+
+    osKernelUnlock();
+
+    // free(threads);
+}
+
+#endif
 
 void print_current_thread_id(void)
 {

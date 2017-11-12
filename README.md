@@ -1,19 +1,18 @@
 # mbed-memory-status
 
-## Note
-
-As of mbed OS 5.5, this code no longer works. The switch to CMSIS-RTOS2 as the base OS has removed all of the low-level APIs that were relied upon.
-
-The last version of mbed OS that will work is [https://github.com/ARMmbed/mbed-os/releases/tag/mbed-os-5.4.7](mbed-os-5.4.7).
-
 ## Purpose
 
 Print thread stack, ISR stack, and global heap locations, sizes, and utilization at runtime when using mbed OS. Useful for tracking down total runtime memory usage and stack overflows.
 
 Does *not* use printf(). It *will* automatically initialize the default serial port to 115200 8N1 using the low-level mbed `serial_api.h` if no other instantiation has occurred.
 
+The code has now been fixed to detect whether it is running on the CMSIS-RTOS 1 or CMSIS-RTOS 2 API and will adjust its low-level API calls accordingly.
+
 ## Example
-```
+
+```c
+#include "mbed_memory_status.h"
+
 int main()
 {
     print_all_thread_info();
@@ -21,9 +20,19 @@ int main()
 }
 ```
 
+## Building
+
+When building the code, make sure to pass the `MBED_STACK_STATS_ENABLED` compiler macro as follows, otherwise mbed will eliminate the stack canary code:
+
+```
+mbed compile -D MBED_STACK_STATS_ENABLED=1
+```
+
+This value can also be added permanently to the `mbed_app.json` macros.
+
 ## Output
 
-Using ARM RTX RTOS on mbed, this will print something like:
+Using ARM RTX RTOS on up to mbed 5.4.7, this will print something like:
 
 ```
     stack ( start: 20005100 end: 20005420 size: 00000320 used: 00000070 ) thread ( id: 2000542C entry: 00020D91 )
@@ -31,6 +40,16 @@ Using ARM RTX RTOS on mbed, this will print something like:
     stack ( start: 20004E58 end: 20005058 size: 00000200 used: 00000050 ) thread ( id: 20005644 entry: 0002022D )
      heap ( start: 200056E8 end: 20007800 size: 00002118 used: 00000398 )  alloc ( ok: 00000006  fail: 00000000 )
 isr_stack ( start: 20007800 end: 20008000 size: 00000800 used: 000002B0 )
+```
+
+Using CMSIS-RTOS 2 from mbed 5.5 and higher, we gain access to thread names, so this will print something like:
+
+```
+    stack ( start: 20004628 end: 20005628 size: 00001000 used: 000000F8 ) thread ( id: 200045D8 entry: 0001CEBD name: main_thread )
+    stack ( start: 200040A0 end: 200042A0 size: 00000200 used: 00000100 ) thread ( id: 20003D58 entry: 0001D019 name: unknown )
+    stack ( start: 20003DA0 end: 200040A0 size: 00000300 used: 00000068 ) thread ( id: 20003D10 entry: 0001F1BD name: unknown )
+     heap ( start: 20005738 end: 2000FC00 size: 0000A4C8 used: 00000000 )  alloc ( ok: 00000000  fail: 00000000 )
+isr_stack ( start: 2000FC00 end: 20010000 size: 00000400 )
 ```
 
 ## Use
@@ -56,8 +75,18 @@ Then define this in `mbed_memory_status.c`, or via the `mbed_app.json` macros, o
 #define DEBUG_ISR_STACK_USAGE  1
 ```
 
-## Why
+## Gotchas
+
+On mbed 5.5 and up, there may be a Heisenbug when calling print_thread_info() inside of osKernelLock()!
+
+This error sometimes appears on the serial console shortly after chip startup, but not always:
+`mbed assertation failed: os_timer->get_tick() == svcRtxKernelGetTickCount(), file: .\mbed-os\rtos\TARGET_CORTEX\mbed_rtx_idle.c`
+
+The RTOS seems to be asserting an idle constraint violation due to the slowness of sending data through the serial port, but it does not happen consistently.
+
+## Why This Exists
 
 This code exists because of a stupid amount of bug-hunting:
+
 > https://vilimpoc.org/blog/2017/02/01/stack-heap-and-thread-crash-hunting-in-mbed-os/
 > https://vilimpoc.org/blog/2017/02/04/isr-stack-usage-on-mbed/
