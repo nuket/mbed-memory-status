@@ -63,8 +63,10 @@ mbed add https://github.com/nuket/mbed-memory-status.git mbed-memory-status
 To enable the ISR stack usage tracking, the following assembly code needs to be added to your chip's specific `startup_[your chip].S` file:
 
 ```asm
-LDR     R0, =fill_isr_stack_with_canary
-BLX     R0
+#if DEBUG_ISR_STACK_USAGE
+    LDR     R0, =fill_isr_stack_with_canary
+    BLX     R0
+#endif
 ```
 
 See the `startup_example.S.txt` file for what this looks like (the file is a modified copy of `startup_NRF51822.S`).
