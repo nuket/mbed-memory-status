@@ -29,7 +29,15 @@
  * pulling in all the printf() code.
  */
 
+// Header file renamed in mbed OS 5.4 release
+// See: https://github.com/ARMmbed/mbed-os/commit/aff49d8d1e3b5d4dc18286b0510336c36ae9603c
+
+#if MBED_VERSION >= 50400
 #include "platform/mbed_critical.h"
+#else
+#include "platform/critical.h"
+#endif
+
 #include "platform/mbed_stats.h"
 
 #if !MBED_STACK_STATS_ENABLED
