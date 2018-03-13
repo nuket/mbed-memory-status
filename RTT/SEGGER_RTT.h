@@ -3,7 +3,7 @@
 *                        The Embedded Experts                        *
 **********************************************************************
 *                                                                    *
-*       (c) 2014 - 2016  SEGGER Microcontroller GmbH & Co. KG        *
+*       (c) 2014 - 2017  SEGGER Microcontroller GmbH & Co. KG        *
 *                                                                    *
 *       www.segger.com     Support: support@segger.com               *
 *                                                                    *
@@ -52,7 +52,7 @@
 *                                                                    *
 **********************************************************************
 *                                                                    *
-*       RTT version: 6.12                                           *
+*       RTT version: 6.20g                                           *
 *                                                                    *
 **********************************************************************
 ---------------------------END-OF-HEADER------------------------------
@@ -60,7 +60,7 @@ File    : SEGGER_RTT.h
 Purpose : Implementation of SEGGER real-time transfer which allows
           real-time communication on targets which support debugger 
           memory accesses while the CPU is running.
-Revision: $Rev: 4351 $
+Revision: $Rev: 6849 $
 ----------------------------------------------------------------------
 */
 
@@ -159,6 +159,9 @@ unsigned     SEGGER_RTT_WriteNoLock             (unsigned BufferIndex, const voi
 unsigned     SEGGER_RTT_WriteSkipNoLock         (unsigned BufferIndex, const void* pBuffer, unsigned NumBytes);
 unsigned     SEGGER_RTT_WriteString             (unsigned BufferIndex, const char* s);
 void         SEGGER_RTT_WriteWithOverwriteNoLock(unsigned BufferIndex, const void* pBuffer, unsigned NumBytes);
+unsigned     SEGGER_RTT_PutChar                 (unsigned BufferIndex, char c);
+unsigned     SEGGER_RTT_PutCharSkip             (unsigned BufferIndex, char c);
+unsigned     SEGGER_RTT_PutCharSkipNoLock       (unsigned BufferIndex, char c);
 //
 // Function macro for performance optimization
 //
