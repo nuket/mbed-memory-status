@@ -4,6 +4,8 @@
 
 Print thread stack, ISR stack, and global heap locations, sizes, and utilization at runtime when using mbed OS. Useful for tracking down total runtime memory usage and stack overflows.
 
+It will print debug information to the serial port, or use SEGGER Real Time Transfer (RTT), or use the Serial Wire Output (SWO) capabilities in supported ARM Cortex chips.
+
 Does *not* use printf(). It *will* automatically initialize the default serial port to 115200 8N1 using the low-level mbed `serial_api.h` if no other instantiation has occurred.
 
 The code has now been fixed to detect whether it is running on the CMSIS-RTOS 1 or CMSIS-RTOS 2 API and will adjust its low-level API calls accordingly.
@@ -77,6 +79,28 @@ Then define this in `mbed_memory_status.c`, or via the `mbed_app.json` macros, o
 #define DEBUG_ISR_STACK_USAGE  1
 ```
 
+## Outputs
+
+With `#define OUTPUT_SERIAL 1`:
+
+![Serial Output](output-uart.png)
+
+With `#define OUTPUT_RTT 1`:
+
+![SEGGER Real Time Transfer Output](output-rtt.png)
+
+With `#define OUTPUT_SWO 1` (and `-D ENABLE_SWO` on an nRF52 Development Kit):
+
+![Serial Wire Output](output-swo.png)
+
+And, having all of them active together works too!
+
+![All At Once](output-simultaneous.png)
+
+## Supports
+
+[mbed OS](https://github.com/ARMmbed/mbed-os/) 5.2.0 - 5.9.5 (and up to [b53a9ea](https://github.com/ARMmbed/mbed-os/commit/b53a9ea4c02fd67cb0cc94d08361e8815585b7bf))
+
 ## Gotchas
 
 On mbed 5.5 and up, there may be a Heisenbug when calling print_thread_info() inside of osKernelLock()!
@@ -85,6 +109,8 @@ This error sometimes appears on the serial console shortly after chip startup, b
 `mbed assertation failed: os_timer->get_tick() == svcRtxKernelGetTickCount(), file: .\mbed-os\rtos\TARGET_CORTEX\mbed_rtx_idle.c`
 
 The RTOS seems to be asserting an idle constraint violation due to the slowness of sending data through the serial port, but it does not happen consistently.
+
+Resetting or power-cycling the chip may solve this problem.
 
 ## Why This Exists
 
